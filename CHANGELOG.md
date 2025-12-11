@@ -30,3 +30,12 @@
 - Increased compatibility with upcoming Phase 7 Rollback Engine.
 
 ---
+## [2025-12-11 02:18] Phase 7 - Rollback Engine Added
+
+### Added
+- Implemented **RollbackEngine** under \2_core/system/rollback/\.
+- Supports preview mode, full restore mode, and JSON rollback tracking.
+- Designed for SortEngine integration (Phase 8).
+- Automount-ready with REGISTER block.
+
+---
