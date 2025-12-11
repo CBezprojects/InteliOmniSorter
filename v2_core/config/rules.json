@@ -1,0 +1,23 @@
+﻿[
+    {
+        "name": "Images → By Year-Month",
+        "type": "image",
+        "target": "sorted/images/{year}/{month}/"
+    },
+    {
+        "name": "Videos → By Year-Month",
+        "type": "video",
+        "target": "sorted/videos/{year}/{month}/"
+    },
+    {
+        "name": "Portraits → Faces",
+        "type": "image",
+        "faces": ["person_1"],
+        "target": "sorted/portraits/person_1/"
+    },
+    {
+        "name": "Screenshots",
+        "ext": [".png"],
+        "target": "sorted/screenshots/"
+    }
+]
