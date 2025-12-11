@@ -39,3 +39,11 @@
 - Automount-ready with REGISTER block.
 
 ---
+## [2025-12-11 02:20] Phase 8 - SortEngine Rollback Integration
+
+### Added
+- SortEngine now records rollback entries for every file move.
+- Automatic detection of RollbackEngine through Automount V2.
+- Rollback now fully operational after any sort session.
+
+---
