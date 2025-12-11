@@ -1,16 +1,10 @@
 ﻿"""
-InteliOmniSorter - Sort Engine (Phase 4 Core Architecture)
+InteliOmniSorter - Sort Engine (Phase 6 Integration)
 
-This engine coordinates:
-- file walking
-- metadata extraction
-- face detection (if engine is registered)
-- rule evaluation
-- simulated vs live mode
-- safety layer (no destructive ops)
-- logging + rollback
-
-Automount V2 loads this engine automatically.
+- Loads RuleEngine automatically via Automount V2
+- Expands rule templates like {year}/{month}/{ext}
+- Uses rule-based destinations
+- Falls back to timeline sorting
 """
 
 REGISTER = {
@@ -19,13 +13,10 @@ REGISTER = {
 }
 
 import os
-import json
 from pathlib import Path
 from datetime import datetime
 
-# ============================================================
-# Import Automount Registry
-# ============================================================
+# Load Automount V2
 try:
     from v2_core.system.automount.automount import mount_all
 except:
@@ -33,22 +24,25 @@ except:
 
 REGISTRY = mount_all()
 
-# ============================================================
-# Core Sort Engine Class
-# ============================================================
+# Get Rule Engine
+rule_engine_mod = REGISTRY["engines"].get("rule_engine") or REGISTRY["plugins"].get("rule_engine") or REGISTRY["hooks"].get("rule_engine")
+RuleEngine = None
+if rule_engine_mod:
+    RuleEngine = getattr(rule_engine_mod, "RuleEngine", None)
+
 
 class SortEngine:
     engine_name = "sort_engine"
 
     def __init__(self, simulated=True):
         self.simulated = simulated
-        self.rules = []
         self.logs = []
         self.rollback_stack = []
         self.faces_engine = REGISTRY["engines"].get("faces_engine")
+        self.rule_engine = RuleEngine() if RuleEngine else None
 
     # --------------------------------------------------------
-    # Logging Helpers
+    # Logging
     # --------------------------------------------------------
     def log(self, msg):
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -57,21 +51,15 @@ class SortEngine:
         print(entry)
 
     def snapshot(self, file_path):
-        """
-        Record rollback information for safety.
-        """
         self.rollback_stack.append({
             "file": str(file_path),
             "exists": Path(file_path).exists()
         })
 
     # --------------------------------------------------------
-    # Safety Layer
+    # Safe move
     # --------------------------------------------------------
     def safe_move(self, src, dst):
-        """
-        Simulated move OR real move based on engine mode.
-        """
         self.snapshot(src)
 
         if self.simulated:
@@ -84,78 +72,86 @@ class SortEngine:
             self.log(f"[MOVE] {src} -> {dst}")
             return True
         except Exception as e:
-            self.log(f"[ERROR] Failed to move {src}: {e}")
+            self.log(f"[ERROR] Failed move: {e}")
             return False
 
     # --------------------------------------------------------
-    # Pre-Classification Layer
+    # Extract tags + metadata
     # --------------------------------------------------------
     def classify(self, file_path):
-        """
-        Extract metadata, optionally run face engine, and return classification tags.
-        """
-        tags = {"type": "unknown", "faces": []}
-
+        tags = {}
         ext = Path(file_path).suffix.lower()
+
+        tags["ext"] = ext
+
+        # Image/video detection
         if ext in [".jpg", ".jpeg", ".png"]:
             tags["type"] = "image"
-
-        if ext in [".mp4", ".mov", ".avi"]:
+        elif ext in [".mp4", ".mov", ".avi"]:
             tags["type"] = "video"
+        else:
+            tags["type"] = "other"
 
-        # optional: faces engine
+        # Timestamp
+        ts = datetime.fromtimestamp(Path(file_path).stat().st_mtime)
+        tags["year"] = ts.year
+        tags["month"] = ts.strftime("%m")
+        tags["day"] = ts.strftime("%d")
+
+        # Faces (optional)
         if self.faces_engine:
             try:
                 mod = self.faces_engine
                 if hasattr(mod, "detect_faces"):
-                    faces = mod.detect_faces(file_path)
-                    tags["faces"] = faces
+                    tags["faces"] = mod.detect_faces(file_path)
             except Exception as e:
                 self.log(f"[WARN] Face engine failed: {e}")
 
         return tags
 
     # --------------------------------------------------------
-    # Rule Evaluation Pipeline
+    # Apply rules + expand templates
     # --------------------------------------------------------
-    def apply_rules(self, file_path, tags):
-        """
-        Evaluate rules to determine destination folder.
-        Default: Year/Month from metadata or file timestamp.
-        """
-        # default rule – timeline sort
-        ts = datetime.fromtimestamp(Path(file_path).stat().st_mtime)
-        year = ts.year
-        month = ts.strftime("%m")
+    def expand_target(self, template, tags):
+        for key, value in tags.items():
+            template = template.replace(f"{{{key}}}", str(value))
+        return template
 
-        return f"sorted/{year}/{month}/"
+    def resolve_destination(self, tags, file_name):
+        # 1) Try RuleEngine
+        if self.rule_engine:
+            target = self.rule_engine.evaluate(tags)
+            if target:
+                return Path(self.expand_target(target, tags)) / file_name
+
+        # 2) Fallback – timeline sort
+        fallback = f"sorted/other/{tags['year']}/{tags['month']}/"
+        return Path(fallback) / file_name
 
     # --------------------------------------------------------
-    # Main Entry
+    # Main entry
     # --------------------------------------------------------
     def run(self, input_folder):
-        self.log(f"SortEngine started (simulated={self.simulated})")
-        input_folder = Path(input_folder)
+        self.log(f"SortEngine Phase 6 started (simulated={self.simulated})")
 
+        input_folder = Path(input_folder)
         if not input_folder.exists():
-            self.log("[ERROR] Input folder does not exist.")
+            self.log("[ERROR] Input folder missing.")
             return
 
         for file in input_folder.rglob("*.*"):
-            if file.is_dir(): continue
+            if file.is_dir():
+                continue
 
             tags = self.classify(file)
-            target_dir = self.apply_rules(file, tags)
-            dst = Path(target_dir) / file.name
+            dst = self.resolve_destination(tags, file.name)
 
             self.safe_move(str(file), str(dst))
 
-        self.log("SortEngine completed.")
+        self.log("SortEngine Phase 6 completed.")
         return self.logs, self.rollback_stack
 
-# ============================================================
-# Command-line test
-# ============================================================
+
 if __name__ == "__main__":
     engine = SortEngine(simulated=True)
     engine.run("sample_input")

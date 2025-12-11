@@ -16,3 +16,17 @@
 - Ensured Automount V2 automatically registers the Rule Engine.
 
 ---
+## [2025-12-11 02:15] Phase 6 - SortEngine ? RuleEngine Full Integration
+
+### Added
+- SortEngine now loads RuleEngine dynamically via Automount V2.
+- Template expansion system ({year}, {month}, {ext}, {day}).
+- Rule-based destination resolution.
+- Automatic fallback sorting when no rules match.
+- Updated tag classification (faces, timestamps, ext, type).
+
+### Improved
+- SortEngine pipeline fully modular and rule-driven.
+- Increased compatibility with upcoming Phase 7 Rollback Engine.
+
+---
