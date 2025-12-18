@@ -16,35 +16,41 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-# Load Automount V2
-try:
-    from v2_core.system.automount.automount import mount_all
-except:
-    from system.automount.automount import mount_all
 
-REGISTRY = mount_all()
-
-# Get Rule Engine
-rule_engine_mod = (
-    REGISTRY["engines"].get("rule_engine") or
-    REGISTRY["plugins"].get("rule_engine") or
-    REGISTRY["system"].get("rule_engine")
-)
-
-RuleEngine = None
-if rule_engine_mod:
-    RuleEngine = getattr(rule_engine_mod, "RuleEngine", None)
+def _get_registry():
+    """
+    Lazy registry fetch (no import-time bootstrap).
+    omni.py should call discover() once at startup.
+    """
+    try:
+        from v2_core.system.registry import get_registry
+        return get_registry()
+    except Exception:
+        return {"engines": {}, "plugins": {}, "system": {}}
 
 
 class SortEngine:
     engine_name = "sort_engine"
 
+
+    def _load_rule_engine(self):
+        reg = _get_registry()
+        rule_mod = (
+            reg["engines"].get("rule_engine") or
+            reg["plugins"].get("rule_engine") or
+            reg["system"].get("rule_engine")
+        )
+        if not rule_mod:
+            return None
+        RuleEngine = getattr(rule_mod, "RuleEngine", None)
+        return RuleEngine() if RuleEngine else None
+
     def __init__(self, simulated=True):
         self.simulated = simulated
         self.logs = []
         self.rollback_stack = []
-        self.faces_engine = REGISTRY["engines"].get("faces_engine")
-        self.rule_engine = RuleEngine() if RuleEngine else None
+        self.faces_engine = _get_registry()["engines"].get("faces_engine")
+        self.rule_engine = self._load_rule_engine()
 
     # --------------------------------------------------------
     # Logging
@@ -160,4 +166,5 @@ class SortEngine:
 if __name__ == "__main__":
     engine = SortEngine(simulated=True)
     engine.run("sample_input")
+
 

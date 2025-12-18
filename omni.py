@@ -1,109 +1,106 @@
-﻿"""
-InteliOmniSorter - CLI Launcher (Phase 9)
-
-Provides:
-- sort command
-- rollback preview
-- rollback apply
-- automatic loading of engines via Automount V2
+﻿#!/usr/bin/env python3
+"""
+InteliOmniSorter :: CLI Entry Point
+ARCHIVIST-CORE canonical spine
 """
 
 import argparse
 import sys
+
+
+
 from pathlib import Path
 
-# -------------------------------------------------------
-# Ensure ROOT is in PYTHONPATH
-# -------------------------------------------------------
+# --------------------------------------------------
+# ARCHIVIST-CORE bootstrap
+# Ensure v2_core is on sys.path
+# --------------------------------------------------
 ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+V2_CORE = ROOT / "v2_core"
 
-# -------------------------------------------------------
-# AutoMount V2
-# -------------------------------------------------------
-import importlib.util
+if str(V2_CORE) not in sys.path:
+    sys.path.insert(0, str(V2_CORE))
+def main():
+    parser = argparse.ArgumentParser(
+        description="InteliOmniSorter CLI Tool"
+    )
 
-# -------------------------------------------------------
-# Universal Automount Loader (works everywhere)
-# -------------------------------------------------------
-AUTO_PATH = ROOT / "v2_core" / "system" / "automount" / "automount.py"
+    subparsers = parser.add_subparsers(
+        dest="command",
+        required=True
+    )
 
-spec = importlib.util.spec_from_file_location("automount", AUTO_PATH)
-automount = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(automount)
+    # --------------------------------------------------
+    # sort
+    # --------------------------------------------------
+    sort_parser = subparsers.add_parser(
+        "sort",
+        help="Run sorting operation"
+    )
 
-mount_all = automount.mount_all
+    # --------------------------------------------------
+    # rollback
+    # --------------------------------------------------
+    rollback_parser = subparsers.add_parser(
+        "rollback",
+        help="Rollback last operation"
+    )
 
-REGISTRY = mount_all()
+    # --------------------------------------------------
+    # doctor (audit-only)
+    # --------------------------------------------------
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Run read-only system audit (no mutation)"
+    )
 
-# Engines
-SortEngine = None
-RollbackEngine = None
+    doctor_parser.add_argument(
+        "--mode",
+        choices=["audit"],
+        required=True,
+        help="Doctor mode (audit only)"
+    )
 
-# Detect engines
-if "sort_engine" in REGISTRY["engines"]:
-    SortEngine = REGISTRY["engines"]["sort_engine"].SortEngine
+    doctor_parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="Enable deep inspection (still read-only)"
+    )
 
-if "rollback_engine" in REGISTRY["system"]:
-    RollbackEngine = REGISTRY["system"]["rollback_engine"].RollbackEngine
+    doctor_parser.add_argument(
+        "--out",
+        required=True,
+        help="Path to JSON output report"
+    )
 
-# -------------------------------------------------------
-# CLI
-# -------------------------------------------------------
-def cli():
-    parser = argparse.ArgumentParser(description="InteliOmniSorter CLI Tool")
-    sub = parser.add_subparsers(dest="command")
-
-    # SORT
-    sort_cmd = sub.add_parser("sort")
-    sort_cmd.add_argument("--input", required=True, help="Folder to sort")
-    sort_cmd.add_argument("--simulate", action="store_true", help="Simulated run")
-
-    # ROLLBACK
-    rb_cmd = sub.add_parser("rollback")
-    rb_cmd.add_argument("--preview", action="store_true")
-    rb_cmd.add_argument("--apply", action="store_true")
+    doctor_parser.add_argument(
+        "--text",
+        required=True,
+        help="Path to human-readable text report"
+    )
 
     args = parser.parse_args()
 
-    # -------------------------
-    # SORT
-    # -------------------------
+    # --------------------------------------------------
+    # Dispatch
+    # --------------------------------------------------
     if args.command == "sort":
-        if not SortEngine:
-            print("[ERROR] SortEngine not found in REGISTRY.")
-            return
+        print("[INFO] sort command invoked (stub)")
+        sys.exit(0)
 
-        eng = SortEngine(simulated=args.simulate)
-        eng.run(args.input)
-        return
+    elif args.command == "rollback":
+        print("[INFO] rollback command invoked (stub)")
+        sys.exit(0)
 
-    # -------------------------
-    # ROLLBACK
-    # -------------------------
-    if args.command == "rollback":
-        if not RollbackEngine:
-            print("[ERROR] RollbackEngine not loaded.")
-            return
+    elif args.command == "doctor":
+        from system.doctor.audit import run_audit
+        run_audit(args)
+        sys.exit(0)
 
-        rb = RollbackEngine()
-
-        if args.preview:
-            rb.rollback(dry_run=True)
-            return
-
-        if args.apply:
-            rb.rollback(dry_run=False)
-            return
-
-        print("[ERROR] Use --preview or --apply for rollback.")
-        return
-
-    parser.print_help()
+    else:
+        parser.error("Unknown command")
 
 
 if __name__ == "__main__":
-    cli()
-
+    main()
 

@@ -1,67 +1,53 @@
 ﻿"""
-InteliOmniSorter - Automount V3 (Fixed Root)
+InteliOmniSorter — Automount (Discovery Only)
+
+- Scans v2_core/{engines,plugins,system} for .py
+- Loads modules dynamically
+- Registers modules that expose REGISTER = {"name": "...", "type": "..."}
+- No recursion safeguards required because engines MUST NOT call discover() at import time.
+
+Bootstrap rule:
+- omni.py calls discover() once, then uses registry.get_registry()
 """
 
-import importlib.util
 from pathlib import Path
+import importlib.util
 
-# Correct root: CleanRoot/
-ROOT = Path(__file__).resolve().parents[3]
+from v2_core.system.registry import register
 
-def load_module(path):
-    print(f"[AutoMount] Loading: {path}")
+ROOT = Path(__file__).resolve().parents[2]  # ...\v2_core
+
+def _load_module(path: Path):
     spec = importlib.util.spec_from_file_location(path.stem, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
-def mount_all():
-    base = ROOT / "v2_core"
+def discover(verbose: bool = False):
+    base = ROOT  # points at ...\v2_core
 
-    registry = {
-        "engines": {},
-        "plugins": {},
-        "system": {}
-    }
+    for kind in ["engines", "plugins", "system"]:
+        scan_dir = base / kind
+        if not scan_dir.exists():
+            continue
 
-    print(f"[AutoMount] Root = {ROOT}")
-    print(f"[AutoMount] Base = {base}")
-
-    # ---- LOAD ENGINES ----
-    engines_dir = base / "engines"
-    print(f"[AutoMount] Scanning engines: {engines_dir}")
-
-    if engines_dir.exists():
-        for file in engines_dir.rglob("*.py"):
+        for file in scan_dir.rglob("*.py"):
             if file.name in ["__init__.py", "automount.py"]:
                 continue
-            mod = load_module(file)
-            if hasattr(mod, "REGISTER"):
-                name = mod.REGISTER["name"]
-                print(f"[AutoMount] Engine registered: {name}")
-                registry["engines"][name] = mod
-    else:
-        print(f"[ERROR] Engines path does NOT exist: {engines_dir}")
-
-    # ---- LOAD PLUGINS ----
-    plugins_dir = base / "plugins"
-    if plugins_dir.exists():
-        for file in plugins_dir.rglob("*.py"):
-            if file.name == "__init__.py":
+            if file.name.startswith("_"):
                 continue
-            mod = load_module(file)
-            if hasattr(mod, "REGISTER"):
-                registry["plugins"][mod.REGISTER['name']] = mod
 
-    # ---- LOAD SYSTEM MODULES ----
-    system_dir = base / "system"
-    if system_dir.exists():
-        for file in system_dir.rglob("*.py"):
-            if file.name in ["__init__.py", "automount.py"]:
-                continue
-            mod = load_module(file)
-            if hasattr(mod, "REGISTER"):
-                registry["system"][mod.REGISTER['name']] = mod
+            if verbose:
+                print(f"[AutoMount] Loading: {file}")
 
-    print("[AutoMount] DONE.")
-    return registry
+            mod = _load_module(file)
+
+            if hasattr(mod, "REGISTER"):
+                meta = getattr(mod, "REGISTER")
+                name = meta.get("name")
+                mtype = meta.get("type", kind)
+
+                if name:
+                    register(mtype, name, mod)
+                    if verbose:
+                        print(f"[AutoMount] Registered: {mtype}:{name}")

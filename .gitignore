@@ -1,14 +1,66 @@
-﻿# Logs
-logs/
-*.log
+﻿# ==============================
+# InteliOmniSorter (.gitignore)
+# ARCHIVIST-CORE
+# ==============================
 
-# Backups
+# ---- PC simulation & training outputs ----
+audit/PC_SIM_*/
+audit/**/move_plan.csv
+audit/**/move_plan.xlsx
+audit/**/folder_stats.csv
+audit/**/sim_summary.json
+audit/**/excel_export_error.txt
+
+# ---- Doctor / audit outputs ----
+audit/*doctor_report*.json
+audit/*doctor_report*.txt
+
+# ---- Terminal recordings ----
+audit/terminal_captures/
+InteliOmniSorter_CMD_Capture*.txt
+
+# ---- Backups & legacy snapshots ----
 *.bak
 *.bak_*
+*.legacy_*
+v2_core/_backups/
 
-# PowerShell temp duplicates
-*.ps1.ps1
+# ---- External / large blobs ----
+*.zip
+external/
 
-# Python cache
+# ---- Python ----
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# ---- OS / Editors ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+# ===== ARCHIVIST-CORE ADDITIONS =====
+
+# Audit & inspection outputs
+audit/FULL_SYSTEM_AUDIT_*/
+audit/REPO_STATE_*/
+audit/**/*.txt
+audit/**/*.json
+
+# Terminal logs & captures
+logs/
+logs/terminal/
+InteliOmniSorter_CMD_Capture*.txt
+
+# Backups
+*.bootstrap_bak_*
+*.legacy_*
+
+# Legacy runtime logs
+legacy_v1/logs/
+
+# Accidental duplicates
+*.ps1.ps1
