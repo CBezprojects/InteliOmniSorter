@@ -1,0 +1,26 @@
+{
+  "version": "0.0.0",
+  "project": "OMNI / InteliOmniSorter",
+  "philosophy": "Sort everything. Break nothing. Always recoverable.",
+  "paths": {
+    "root": "~/Projects/omni",
+    "logs": "~/Projects/omni/logs",
+    "config": "~/Projects/omni/config",
+    "src": "~/Projects/omni/src"
+  },
+  "modules": [
+    "ingest",
+    "classify",
+    "rules",
+    "actions",
+    "safety",
+    "logger",
+    "vision",
+    "terminal"
+  ],
+  "defaults": {
+    "dry_run": true,
+    "logging": true,
+    "confirm_destructive": true
+  }
+}
