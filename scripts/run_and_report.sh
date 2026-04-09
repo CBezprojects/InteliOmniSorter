@@ -28,7 +28,7 @@ echo
 echo "[OMNI] Generating report..."
 python -m src.terminal.cli report | tee -a "$TMP_REPORT"
 
-if command -v wl-copy >/dev/null 2>&1; then
+if command -v wl-copy && [ -n "${WAYLAND_DISPLAY:-}" ]; then
   cat "$TMP_REPORT" | wl-copy
   echo
   echo "[OMNI] Copied report output to clipboard via wl-copy."
