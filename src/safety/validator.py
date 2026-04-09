@@ -4,6 +4,7 @@ from pathlib import Path
 
 from src.logger.json_logger import append_json_log, build_event
 from src.safety.git_guard import build_git_protection_map, get_git_protection_for_path
+from src.safety.protected_zones import is_in_protected_zone, load_registry
 
 
 def validate_plan(plan_result: dict) -> dict:
@@ -14,22 +15,35 @@ def validate_plan(plan_result: dict) -> dict:
     blocked_count = 0
 
     git_map = build_git_protection_map(plan_result["scan_path"])
+    registry = load_registry()
 
     for item in plan_result["plan"]:
         destination = Path(item["destination"])
-        git_protection = get_git_protection_for_path(item["source"], git_map)
 
-        if git_protection is not None:
+        # 🔴 PROTECTED ZONES FIRST
+        protected, reason = is_in_protected_zone(item["source"], registry)
+        if protected:
             validated = {
                 **item,
                 "safe": False,
                 "status": "blocked",
-                "reason": git_protection["reason"],
-                "blocked_by": "git",
-                "git_status": git_protection["git_status"],
+                "reason": reason,
+                "blocked_by": "protected_zone",
             }
             blocked_count += 1
 
+        # 🔴 GIT SAFETY
+        elif (git := get_git_protection_for_path(item["source"], git_map)) is not None:
+            validated = {
+                **item,
+                "safe": False,
+                "status": "blocked",
+                "reason": git["reason"],
+                "blocked_by": "git",
+            }
+            blocked_count += 1
+
+        # 🔴 DESTINATION CONFLICT
         elif destination.exists():
             validated = {
                 **item,
@@ -37,10 +51,10 @@ def validate_plan(plan_result: dict) -> dict:
                 "status": "conflict",
                 "reason": "destination already exists",
                 "blocked_by": "destination_conflict",
-                "git_status": "",
             }
             conflict_count += 1
 
+        # 🟢 SAFE
         else:
             validated = {
                 **item,
@@ -48,7 +62,6 @@ def validate_plan(plan_result: dict) -> dict:
                 "status": "safe",
                 "reason": "",
                 "blocked_by": "",
-                "git_status": "",
             }
             safe_count += 1
 
@@ -67,28 +80,24 @@ def validate_plan(plan_result: dict) -> dict:
         "plan": validated_items,
         "safety_summary": summary,
         "git_protection": git_map,
+        "protected_zones": registry,
     }
 
     log_validation(result)
     return result
 
 
-def log_validation(validation_result: dict) -> Path:
-    event = build_event(
-        "plan_validated",
-        {
-            "scan_path": validation_result["scan_path"],
-            "total_files": validation_result["total_files"],
-            "safe": validation_result["safety_summary"]["safe"],
-            "conflicts": validation_result["safety_summary"]["conflicts"],
-            "blocked": validation_result["safety_summary"]["blocked"],
-            "git_active": validation_result["git_protection"]["active"],
-            "git_protected_total": validation_result["git_protection"]["summary"][
-                "protected_total"
-            ],
-        },
+def log_validation(validation_result: dict):
+    append_json_log(
+        "validation_log.json",
+        build_event(
+            "plan_validated",
+            {
+                "safe": validation_result["safety_summary"]["safe"],
+                "blocked": validation_result["safety_summary"]["blocked"],
+            },
+        ),
     )
-    return append_json_log("validation_log.json", event)
 
 
 def run_validation(plan_result: dict) -> dict:
