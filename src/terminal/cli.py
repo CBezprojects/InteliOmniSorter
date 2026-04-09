@@ -5,6 +5,7 @@ import json
 
 from src.classify.classifier import classify_path
 from src.ingest.scanner import run_scan
+from src.rules.rules_engine import run_plan
 from src.safety.doctor import run_doctor
 from src.terminal.report import save_report
 
@@ -22,6 +23,8 @@ def build_parser() -> argparse.ArgumentParser:
     classify_parser.add_argument("--json", action="store_true", help="Print JSON output")
 
     subparsers.add_parser("report", help="Generate OMNI report")
+    plan_parser = subparsers.add_parser("plan", help="Generate dry-run file organization plan")
+    plan_parser.add_argument("path", help="Target directory path")
 
     doctor_parser = subparsers.add_parser("doctor", help="Run OMNI health checks")
     doctor_parser.add_argument("--json", action="store_true", help="Print JSON output")
@@ -53,6 +56,26 @@ def main() -> int:
         else:
             print(f"[OMNI] Suffix: {result['suffix'] or '(none)'}")
             print(f"[OMNI] Category: {result['category']}")
+        return 0
+
+    if args.command == "plan":
+        scan_result = run_scan(args.path)
+        plan = run_plan(scan_result)
+
+        print("[OMNI] Dry-run plan generated:")
+        print(f"[OMNI] Files: {plan['total_files']}")
+        print("[OMNI] Plan summary by category:")
+
+        for category, count in plan["summary"]["by_category"].items():
+            print(f"[OMNI] - {category}: {count}")
+
+        print("[OMNI] Sample planned destinations:")
+        for item in plan["plan"][:10]:
+            print(f"[OMNI] {item['source']} -> {item['destination']}")
+
+        if plan["total_files"] > 10:
+            print(f"[OMNI] ... ({plan['total_files'] - 10} more)")
+
         return 0
 
     if args.command == "report":
