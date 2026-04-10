@@ -21,6 +21,7 @@ def build_dry_run_actions(validation_result: dict) -> dict:
                 "mode": "dry-run",
                 "will_create_dir": True,
                 "will_move": True,
+                "dry_run_reason": "validated safe",
             }
         else:
             action = {
@@ -29,6 +30,7 @@ def build_dry_run_actions(validation_result: dict) -> dict:
                 "mode": "dry-run",
                 "will_create_dir": False,
                 "will_move": False,
+                "dry_run_reason": item.get("reason", "blocked by validation"),
             }
 
         actions.append(action)
@@ -39,30 +41,12 @@ def build_dry_run_actions(validation_result: dict) -> dict:
         "summary": validation_result["summary"],
         "safety_summary": validation_result["safety_summary"],
         "git_protection": validation_result["git_protection"],
-        "directory_plan": sorted(mkdirs),
+        "mode": "dry-run",
         "actions": actions,
+        "items": actions,
+        "directories_to_create": sorted(mkdirs),
     }
 
 
-def log_dry_run(action_result: dict) -> Path:
-    event = build_event(
-        "dry_run_generated",
-        {
-            "scan_path": action_result["scan_path"],
-            "total_files": action_result["total_files"],
-            "safe": action_result["safety_summary"]["safe"],
-            "conflicts": action_result["safety_summary"]["conflicts"],
-            "blocked": action_result["safety_summary"]["blocked"],
-            "git_active": action_result["git_protection"]["active"],
-            "directories_planned": len(action_result["directory_plan"]),
-        },
-    )
-    return append_json_log("action_log.json", event)
-
-
 def run_dry_run(validation_result: dict) -> dict:
-    result = build_dry_run_actions(validation_result)
-    log_dry_run(result)
-    batch = record_batch(result)
-    result["batch_id"] = batch["batch_id"]
-    return result
+    return build_dry_run_actions(validation_result)
