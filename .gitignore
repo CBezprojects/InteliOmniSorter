@@ -6,3 +6,106 @@ __pycache__/
 logs/
 reports/
 *.pyc
+########################################
+# OMNI SAFETY (CRITICAL)
+########################################
+
+# Scan outputs (DO NOT TRACK REAL FILE DATA)
+scans/
+snapshots/
+backups/
+
+# User-controlled data
+data/
+userdata/
+private/
+secrets/
+
+# Environment / secrets
+.env
+*.env
+
+########################################
+# RUNTIME / TEMP
+########################################
+output/
+tmp/
+cache/
+*.tmp
+
+########################################
+# OS FILES
+########################################
+.DS_Store
+Thumbs.db
+
+########################################
+# FUTURE (AI / MODELS)
+########################################
+models/
+*.pt
+*.onnx
+
+########################################
+# OMNI SAFETY (CRITICAL)
+########################################
+
+# Scan outputs (DO NOT TRACK REAL FILE DATA)
+scans/
+snapshots/
+backups/
+
+# User-controlled data
+data/
+userdata/
+private/
+secrets/
+
+# Environment / secrets
+.env
+*.env
+
+########################################
+# RUNTIME / TEMP
+########################################
+output/
+tmp/
+cache/
+*.tmp
+
+########################################
+# OS FILES
+########################################
+.DS_Store
+Thumbs.db
+
+########################################
+# FUTURE (AI / MODELS)
+########################################
+models/
+*.pt
+*.onnx
+
+CTRL + O → Enter
+CTRL + X
+
+
+scans/
+snapshots/
+backups/
+data/
+userdata/
+private/
+secrets/
+.env
+*.env
+output/
+tmp/
+cache/
+*.tmp
+.DS_Store
+Thumbs.db
+models/
+*.pt
+*.onnx
+
