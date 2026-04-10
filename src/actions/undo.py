@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from src.actions.ledger import load_ledger, save_ledger
 
+
 def undo_last_batch():
     ledger = load_ledger()
     if not ledger:
@@ -13,6 +14,7 @@ def undo_last_batch():
             return _undo(batch, ledger)
 
     return None
+
 
 def _undo(batch, ledger):
     restored = 0
@@ -38,10 +40,7 @@ def _undo(batch, ledger):
         restored += 1
 
     batch["mode"] = "undone"
-    batch["undo_summary"] = {
-        "restored": restored,
-        "skipped": skipped
-    }
+    batch["undo_summary"] = {"restored": restored, "skipped": skipped}
 
     save_ledger(ledger)
     return batch
