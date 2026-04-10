@@ -5,6 +5,7 @@ from pathlib import Path
 
 from src.actions.ledger import load_ledger, save_ledger
 from src.logger.json_logger import append_json_log, build_event
+from src.safety.checks import validate_move
 
 
 def confirm_apply(batch_id: str, total_files: int) -> bool:
@@ -61,16 +62,17 @@ def apply_batch(batch_id: str) -> dict:
             blocked += 1
             continue
 
-        if not source.exists():
-            item["execution_status"] = "failed"
-            item["execution_reason"] = "source missing"
-            failures += 1
-            continue
-
-        if destination.exists():
-            item["execution_status"] = "blocked"
-            item["execution_reason"] = "destination already exists at execution time"
-            blocked += 1
+        validation = validate_move(source, destination)
+        if not validation.get("ok", False):
+            reason = validation.get("reason", "validation failed")
+            if reason == "Source file does not exist":
+                item["execution_status"] = "failed"
+                item["execution_reason"] = "source missing"
+                failures += 1
+            else:
+                item["execution_status"] = "blocked"
+                item["execution_reason"] = reason
+                blocked += 1
             continue
 
         try:
