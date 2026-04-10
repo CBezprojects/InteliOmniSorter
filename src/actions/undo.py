@@ -1,46 +1,71 @@
 from __future__ import annotations
+
 import shutil
 from pathlib import Path
+
 from src.actions.ledger import load_ledger, save_ledger
 
 
-def undo_last_batch():
+def get_latest_applied_batch():
     ledger = load_ledger()
     if not ledger:
         return None
 
     for batch in reversed(ledger):
         if batch.get("mode") == "applied":
-            return _undo(batch, ledger)
+            return batch
 
     return None
 
 
-def _undo(batch, ledger):
-    restored = 0
+def undo_batch(batch: dict):
+    reverted = 0
     skipped = 0
+    failed = 0
 
-    for item in batch["items"]:
+    for item in reversed(batch.get("items", [])):
         if item.get("execution_status") != "applied":
             continue
 
-        src = Path(item["destination"])
-        dst = Path(item["source"])
+        src = Path(item["source"])
+        dst = Path(item["destination"])
 
-        if not src.exists():
-            skipped += 1
-            continue
+        try:
+            if not dst.exists():
+                skipped += 1
+                item["undo_status"] = "skipped_missing_destination"
+                continue
 
-        if dst.exists():
-            skipped += 1
-            continue
+            src.parent.mkdir(parents=True, exist_ok=True)
 
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(src), str(dst))
-        restored += 1
+            if src.exists():
+                skipped += 1
+                item["undo_status"] = "skipped_source_exists"
+                continue
+
+            shutil.move(str(dst), str(src))
+            reverted += 1
+            item["undo_status"] = "reverted"
+
+        except Exception as exc:
+            failed += 1
+            item["undo_status"] = f"failed: {exc}"
+
+    batch["undo_summary"] = {
+        "reverted": reverted,
+        "skipped": skipped,
+        "failed": failed,
+    }
 
     batch["mode"] = "undone"
-    batch["undo_summary"] = {"restored": restored, "skipped": skipped}
+    batch["undone"] = True
 
-    save_ledger(ledger)
+    save_ledger([batch])
     return batch
+
+
+def undo_last_batch():
+    batch = get_latest_applied_batch()
+    if batch is None:
+        return None
+    return undo_batch(batch)
